@@ -18,7 +18,7 @@ VALID_QUIZZES = {'quiz1', 'quiz2', 'quiz3', 'quiz4', 'quiz5',
 
 def ensure_topic_exists(topic_name):
     try:
-        admin_client = KafkaAdminClient(bootstrap_servers='localhost:9092')
+        admin_client = KafkaAdminClient(bootstrap_servers='kafka:9092')
         new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
         admin_client.create_topics([new_topic])
         logger.info(f"Created new topic: {topic_name}")
@@ -52,7 +52,7 @@ def handle_join_quiz(data):
     
     # Create Kafka consumer and subscribe to the topic
     consumer = KafkaConsumer(
-        bootstrap_servers=['localhost:9092'],
+        bootstrap_servers=['kafka:9092'],
         auto_offset_reset='latest',
         enable_auto_commit=True,
         group_id=f'quiz_group_{quiz_id}'
