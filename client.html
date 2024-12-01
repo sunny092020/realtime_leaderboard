@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Quiz Join</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <script>
+        // Connect to the Socket.IO server
+        const socket = io('http://localhost:5000');
+
+        // Emit a join_quiz event when connected
+        socket.on('connect', () => {
+            console.log('Connected to server');
+
+            // Send join_quiz event with user_id and quiz_id
+            socket.emit('join_quiz', {
+                user_id: '11111',
+                quiz_id: 'quiz1'
+            });
+        });
+
+        // Listen for responses
+        socket.on('response', (data) => {
+            console.log('Response from server:', data);
+        });
+    </script>
+</body>
+</html>

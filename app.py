@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, join_room
+from flask_cors import CORS
 from loguru import logger
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
+from kafka import KafkaConsumer
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Store valid user IDs and quizzes (in practice, this should be in a database)
 VALID_USER_IDS = {'11111', '22222', '33333', '44444', '55555', 
@@ -47,10 +50,19 @@ def handle_join_quiz(data):
     # Ensure the Kafka topic exists
     ensure_topic_exists(topic_name)
     
+    # Create Kafka consumer and subscribe to the topic
+    consumer = KafkaConsumer(
+        bootstrap_servers=['localhost:9092'],
+        auto_offset_reset='latest',
+        enable_auto_commit=True,
+        group_id=f'quiz_group_{quiz_id}'
+    )
+    consumer.subscribe([topic_name])
+    
     # Subscribe user to the Socket.IO room
     join_room(topic_name)
     
-    logger.info(f'User {user_id} joined quiz {quiz_id}')
+    logger.info(f'User {user_id} joined quiz {quiz_id} and subscribed to Kafka topic {topic_name}')
     return {'status': 'success', 'message': f'Joined quiz {quiz_id}'}
 
 if __name__ == '__main__':
