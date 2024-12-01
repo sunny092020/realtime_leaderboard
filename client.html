@@ -94,16 +94,17 @@
 
             if (userId && quizId) {
                 console.log('Emitting join_quiz event:', { user_id: userId, quiz_id: quizId });
-                // Emit join_quiz event with user_id and quiz_id
                 socket.emit('join_quiz', {
                     user_id: userId,
                     quiz_id: quizId
                 }, (response) => {
-                    // Callback function to confirm the event was sent
                     // Display user ID and quiz ID
                     document.getElementById('displayUserId').innerText = `User ID: ${userId}`;
                     document.getElementById('displayQuizId').innerText = `Quiz ID: ${quizId}`;
-                    document.getElementById('quizInfo').style.display = 'block'; // Show the quiz info section
+                    document.getElementById('quizInfo').style.display = 'block';
+                    
+                    // Request initial leaderboard data
+                    socket.emit('get_leaderboard', { quiz_id: quizId });
                 });
             } else {
                 alert('Please enter a user ID and select a quiz.');

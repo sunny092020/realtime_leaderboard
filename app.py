@@ -177,5 +177,17 @@ def get_leaderboard(quiz_id):
     leaderboard_data = redis_client.zrevrange(redis_key, 0, 9, withscores=True)
     return [{'user_id': user_id, 'score': score} for user_id, score in leaderboard_data]
 
+@socketio.on('get_leaderboard')
+def handle_get_leaderboard(data):
+    quiz_id = str(data.get('quiz_id'))
+    if quiz_id not in VALID_QUIZZES:
+        return {'status': 'error', 'message': 'Invalid quiz ID'}
+    
+    leaderboard = get_leaderboard(quiz_id)
+    socketio.emit('leaderboard_update', {
+        'leaderboard': leaderboard,
+        'quiz_id': quiz_id
+    }, room=request.sid)
+
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
