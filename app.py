@@ -3,13 +3,15 @@ from flask_socketio import SocketIO, join_room
 from flask_cors import CORS
 from loguru import logger
 from kafka.admin import KafkaAdminClient, NewTopic
-from kafka.errors import TopicAlreadyExistsError
+from kafka.errors import TopicAlreadyExistsError, NoBrokersAvailable
 from kafka import KafkaConsumer
 from const import VALID_USER_IDS, VALID_QUIZZES  # Import constants
 import json
 import redis
 import boto3
 from datetime import datetime
+import time
+import sys
 
 app = Flask(__name__)
 CORS(app)
@@ -26,14 +28,36 @@ dynamodb = boto3.client('dynamodb',
     verify=False
 )
 
-def ensure_topic_exists(topic_name):
-    try:
-        admin_client = KafkaAdminClient(bootstrap_servers='kafka:9092')
-        new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
-        admin_client.create_topics([new_topic])
-        logger.info(f"Created new topic: {topic_name}")
-    except TopicAlreadyExistsError:
-        logger.info(f"Topic already exists: {topic_name}")
+def ensure_topic_exists(topic_name, max_retries=5, retry_delay=5):
+    for attempt in range(max_retries):
+        try:
+            admin_client = KafkaAdminClient(bootstrap_servers='kafka:9092')
+            new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
+            admin_client.create_topics([new_topic])
+            logger.info(f"Created new topic: {topic_name}")
+            return
+        except NoBrokersAvailable:
+            if attempt == max_retries - 1:
+                logger.error(f"Failed to connect to Kafka after {max_retries} attempts. Exiting...")
+                sys.exit(1)
+            logger.warning(f"Kafka not available, retrying in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries})")
+            time.sleep(retry_delay)
+        except TopicAlreadyExistsError:
+            logger.info(f"Topic already exists: {topic_name}")
+            return
+
+# Ensure all quiz topics exist
+for quiz_id in VALID_QUIZZES:
+    topic_name = f'leaderboard_scoring_{quiz_id}'
+    ensure_topic_exists(topic_name)
+
+# Initialize single Kafka consumer instance after topics are created
+kafka_consumer = KafkaConsumer(
+    bootstrap_servers=['kafka:9092'],
+    auto_offset_reset='latest',
+    enable_auto_commit=True,
+    group_id='quiz_group'
+)
 
 def create_quiz_scores_table():
     try:
@@ -97,14 +121,8 @@ def handle_join_quiz(data):
     # Ensure the Kafka topic exists
     ensure_topic_exists(topic_name)
     
-    # Create Kafka consumer and subscribe to the topic
-    consumer = KafkaConsumer(
-        bootstrap_servers=['kafka:9092'],
-        auto_offset_reset='latest',
-        enable_auto_commit=True,
-        group_id=f'quiz_group_{quiz_id}'
-    )
-    consumer.subscribe([topic_name])
+    # Subscribe to the topic using the shared consumer
+    kafka_consumer.subscribe([topic_name])
     
     # Subscribe user to the Socket.IO room
     join_room(topic_name)
