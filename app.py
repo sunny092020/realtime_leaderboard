@@ -5,16 +5,11 @@ from loguru import logger
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
 from kafka import KafkaConsumer
+from const import VALID_USER_IDS, VALID_QUIZZES  # Import constants
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
-
-# Store valid user IDs and quizzes (in practice, this should be in a database)
-VALID_USER_IDS = {'11111', '22222', '33333', '44444', '55555', 
-                  '66666', '77777', '88888', '99999', '101010'}
-VALID_QUIZZES = {'quiz1', 'quiz2', 'quiz3', 'quiz4', 'quiz5',
-                 'quiz6', 'quiz7', 'quiz8', 'quiz9', 'quiz10'}
 
 def ensure_topic_exists(topic_name):
     try:
