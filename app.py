@@ -28,73 +28,36 @@ dynamodb = boto3.client('dynamodb',
     verify=False
 )
 
-def ensure_topic_exists(topic_name, max_retries=5, retry_delay=5):
+def ensure_topic_exists(topic_name):
+    try:
+        admin_client = KafkaAdminClient(bootstrap_servers='kafka:9092')
+        new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
+        admin_client.create_topics([new_topic])
+        logger.info(f"Created new topic: {topic_name}")
+    except TopicAlreadyExistsError:
+        logger.info(f"Topic already exists: {topic_name}")
+    except NoBrokersAvailable:
+        logger.error("Failed to connect to Kafka. Exiting...")
+        sys.exit(1)
+
+# Add new function to create consumer
+def get_kafka_consumer(max_retries=5, retry_delay=5):
     for attempt in range(max_retries):
         try:
-            admin_client = KafkaAdminClient(bootstrap_servers='kafka:9092')
-            new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
-            admin_client.create_topics([new_topic])
-            logger.info(f"Created new topic: {topic_name}")
-            return
+            consumer = KafkaConsumer(
+                bootstrap_servers=['kafka:9092'],
+                auto_offset_reset='latest',
+                enable_auto_commit=True,
+                group_id='quiz_group'
+            )
+            logger.info("Successfully created Kafka consumer")
+            return consumer
         except NoBrokersAvailable:
             if attempt == max_retries - 1:
-                logger.error(f"Failed to connect to Kafka after {max_retries} attempts. Exiting...")
+                logger.error(f"Failed to create Kafka consumer after {max_retries} attempts. Exiting...")
                 sys.exit(1)
-            logger.warning(f"Kafka not available, retrying in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries})")
+            logger.warning(f"Kafka not available, retrying consumer creation in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries})")
             time.sleep(retry_delay)
-        except TopicAlreadyExistsError:
-            logger.info(f"Topic already exists: {topic_name}")
-            return
-
-# Ensure all quiz topics exist
-for quiz_id in VALID_QUIZZES:
-    topic_name = f'leaderboard_scoring_{quiz_id}'
-    ensure_topic_exists(topic_name)
-
-# Initialize single Kafka consumer instance after topics are created
-kafka_consumer = KafkaConsumer(
-    bootstrap_servers=['kafka:9092'],
-    auto_offset_reset='latest',
-    enable_auto_commit=True,
-    group_id='quiz_group'
-)
-
-def create_quiz_scores_table():
-    try:
-        dynamodb.describe_table(TableName='quiz_scores')
-        logger.info("Table 'quiz_scores' already exists.")
-    except dynamodb.exceptions.ResourceNotFoundException:
-        dynamodb.create_table(
-            TableName='quiz_scores',
-            KeySchema=[
-                {
-                    'AttributeName': 'user_id',
-                    'KeyType': 'HASH'  # Partition key
-                },
-                {
-                    'AttributeName': 'quiz_id',
-                    'KeyType': 'RANGE'  # Sort key
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'user_id',
-                    'AttributeType': 'S'  # String
-                },
-                {
-                    'AttributeName': 'quiz_id',
-                    'AttributeType': 'S'  # String
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
-        logger.info("Created table 'quiz_scores'.")
-
-# Call this function at the start of your application
-create_quiz_scores_table()
 
 @app.route('/')
 def hello():
@@ -121,8 +84,9 @@ def handle_join_quiz(data):
     # Ensure the Kafka topic exists
     ensure_topic_exists(topic_name)
     
-    # Subscribe to the topic using the shared consumer
-    kafka_consumer.subscribe([topic_name])
+    # Get consumer and subscribe to the topic
+    consumer = get_kafka_consumer()
+    consumer.subscribe([topic_name])
     
     # Subscribe user to the Socket.IO room
     join_room(topic_name)
