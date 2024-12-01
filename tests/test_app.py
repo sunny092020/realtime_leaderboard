@@ -95,9 +95,9 @@ def test_get_leaderboard(client, mock_redis):
 
 def test_calculate_score():
     from app import calculate_score
-    with patch('boto3.client') as mock_dynamodb:
+    with patch('app.dynamodb') as mock_dynamodb:
         # Mock get_item to return a previous score
-        mock_dynamodb.return_value.get_item.return_value = {
+        mock_dynamodb.get_item.return_value = {
             'Item': {
                 'score': {'N': '10'}
             }
