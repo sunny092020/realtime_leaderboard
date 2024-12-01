@@ -123,7 +123,7 @@ def handle_answer_submission(data):
         return {'status': 'error', 'message': 'Invalid user ID or quiz ID'}
     
     # Calculate score (implement your scoring logic here)
-    score = calculate_score(answer, quiz_id)
+    score = calculate_score(answer, quiz_id, user_id)
     
     # Update DynamoDB
     dynamodb.put_item(
@@ -152,10 +152,24 @@ def handle_answer_submission(data):
     
     return {'status': 'success', 'message': 'Answer submitted successfully'}
 
-def calculate_score(answer, quiz_id):
-    # Implement your scoring logic here
-    # For this example, we'll return a random score
-    return len(answer) % 100
+def calculate_score(answer, quiz_id, user_id):
+    # Retrieve the user's past score from DynamoDB
+    response = dynamodb.get_item(
+        TableName='quiz_scores',
+        Key={
+            'user_id': {'S': user_id},
+            'quiz_id': {'S': quiz_id}
+        }
+    )
+    
+    past_score = int(response['Item']['score']['N']) if 'Item' in response else 0
+    
+    # Calculate new score (implement your scoring logic here)
+    new_score = len(answer)
+    
+    # Accumulate past score with new score
+    total_score = past_score + new_score
+    return total_score
 
 def get_leaderboard(quiz_id):
     redis_key = f'quiz:{quiz_id}:leaderboard'
