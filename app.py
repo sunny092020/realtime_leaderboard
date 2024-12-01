@@ -61,4 +61,4 @@ def handle_join_quiz(data):
     return {'status': 'success', 'message': f'Joined quiz {quiz_id}'}
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True) 
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)

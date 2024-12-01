@@ -39,9 +39,36 @@
 
     <button id="joinQuizButton">Join Quiz</button>
 
+    <!-- Add this section to display user ID and quiz ID after joining -->
+    <div id="quizInfo" style="display: none;">
+        <h2>Quiz Joined Successfully!</h2>
+        <label id="displayUserId"></label>
+        <label id="displayQuizId"></label>
+        <label for="userAnswer">Your Answer:</label>
+        <textarea id="userAnswer" rows="4" cols="50" placeholder="Type your answer here..."></textarea>
+    </div>
+
     <script>
         // Connect to the Socket.IO server
-        const socket = io('http://localhost:5000');
+        const socket = io('http://localhost:5000', {
+            transports: ['websocket'],
+            cors: {
+                origin: "http://localhost:5000"
+            }
+        });
+
+        // Connection event handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
 
         // Handle button click to join quiz
         document.getElementById('joinQuizButton').addEventListener('click', () => {
@@ -49,10 +76,17 @@
             const quizId = document.getElementById('quizSelect').value;
 
             if (userId && quizId) {
+                console.log('Emitting join_quiz event:', { user_id: userId, quiz_id: quizId });
                 // Emit join_quiz event with user_id and quiz_id
                 socket.emit('join_quiz', {
                     user_id: userId,
                     quiz_id: quizId
+                }, (response) => {
+                    // Callback function to confirm the event was sent
+                    // Display user ID and quiz ID
+                    document.getElementById('displayUserId').innerText = `User ID: ${userId}`;
+                    document.getElementById('displayQuizId').innerText = `Quiz ID: ${quizId}`;
+                    document.getElementById('quizInfo').style.display = 'block'; // Show the quiz info section
                 });
             } else {
                 alert('Please enter a user ID and select a quiz.');
@@ -61,8 +95,6 @@
 
         // Listen for responses
         socket.on('response', (data) => {
-            console.log('Response from server:', data);
-            alert(data.message); // Show response message
         });
     </script>
 </body>
