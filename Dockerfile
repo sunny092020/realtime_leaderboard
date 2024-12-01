@@ -10,7 +10,7 @@ RUN apt update -y \
 WORKDIR /taskscripts
 
 COPY pyproject.toml ./
-COPY app.py ./
+COPY app.py const.py ./
 
 RUN poetry lock \
     && poetry export -f requirements.txt > requirements.txt \
