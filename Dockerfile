@@ -10,7 +10,13 @@ RUN apt update -y \
 WORKDIR /taskscripts
 
 COPY pyproject.toml ./
+COPY app.py ./
 
-RUN poetry export -f requirements.txt -o requirements.txt --without-hashes \
+RUN poetry lock \
+    && poetry export -f requirements.txt > requirements.txt \
     && pip install -r requirements.txt \
-    && rm -f requirements.txt
+    && rm requirements.txt
+
+EXPOSE 5000
+
+CMD ["python", "app.py"]

@@ -2,6 +2,7 @@
 name = "flink-with-python"
 version = "0.1.0"
 description = ""
+authors = ["Sunny <itworkjp@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -11,8 +12,11 @@ grpcio = "^1.59.3"
 loguru = "^0.7.2"
 black = "^23.11.0"
 asyncio = "^3.4.3"
-apache-flink = "^1.18.0"
 kafka-python = "^2.0.2"
+flask = "^3.0.0"
+flask-socketio = "^5.3.6"
+redis = "^5.0.1"
+boto3 = "^1.34.0"
 
 
 [build-system]

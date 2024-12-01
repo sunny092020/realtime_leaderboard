@@ -27,6 +27,38 @@ services:
     networks:
       - flink-net
 
+  redis:
+    image: redis:7.2
+    ports:
+      - "6379:6379"
+    networks:
+      - flink-net
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb"
+    networks:
+      - flink-net
+
+  flask-app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_HOST=redis
+      - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+    depends_on:
+      - redis
+      - dynamodb-local
+      - kafka
+    networks:
+      - flink-net
+
 networks:
   flink-net:
     external: false
