@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -19,14 +20,19 @@ app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Initialize Redis and DynamoDB clients
-redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
+# Initialize Redis and DynamoDB clients using environment variables
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "redis"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    decode_responses=True,
+)
+
 dynamodb = boto3.client(
     "dynamodb",
-    endpoint_url="http://dynamodb-local:8000",
-    region_name="local",
-    aws_access_key_id="local",
-    aws_secret_access_key="local",
+    endpoint_url=os.getenv("DYNAMODB_ENDPOINT", "http://dynamodb-local:8000"),
+    region_name=os.getenv("AWS_REGION", "local"),
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "local"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "local"),
     aws_session_token=None,
     verify=False,
 )
@@ -34,7 +40,9 @@ dynamodb = boto3.client(
 
 def ensure_topic_exists(topic_name):
     try:
-        admin_client = KafkaAdminClient(bootstrap_servers="kafka:9092")
+        admin_client = KafkaAdminClient(
+            bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+        )
         new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
         admin_client.create_topics([new_topic])
         logger.info(f"Created new topic: {topic_name}")
@@ -50,7 +58,7 @@ def get_kafka_consumer(max_retries=5, retry_delay=5):
     for attempt in range(max_retries):
         try:
             consumer = KafkaConsumer(
-                bootstrap_servers=["kafka:9092"],
+                bootstrap_servers=[os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")],
                 auto_offset_reset="latest",
                 enable_auto_commit=True,
                 group_id="quiz_group",

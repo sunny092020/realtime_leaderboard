@@ -51,6 +51,10 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - FLASK_APP=app.py
       - FLASK_ENV=development
+      - REDIS_PORT=6379
+      - AWS_REGION=local
+      - AWS_ACCESS_KEY_ID=local
+      - AWS_SECRET_ACCESS_KEY=local
     depends_on:
       - redis
       - dynamodb-local
