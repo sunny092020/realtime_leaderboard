@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from datetime import datetime
+from typing import Dict, List, Optional, Tuple, Union
 
 import boto3
 import redis
@@ -38,7 +39,7 @@ dynamodb = boto3.client(
 )
 
 
-def ensure_topic_exists(topic_name):
+def ensure_topic_exists(topic_name: str) -> None:
     try:
         admin_client = KafkaAdminClient(
             bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
@@ -54,7 +55,7 @@ def ensure_topic_exists(topic_name):
 
 
 # Add new function to create consumer
-def get_kafka_consumer(max_retries=5, retry_delay=5):
+def get_kafka_consumer(max_retries: int = 5, retry_delay: int = 5) -> KafkaConsumer:
     for attempt in range(max_retries):
         try:
             consumer = KafkaConsumer(
@@ -88,7 +89,7 @@ def handle_connect():
 
 
 @socketio.on("join_quiz")
-def handle_join_quiz(data):
+def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
     user_id = str(data.get("user_id"))
     quiz_id = str(data.get("quiz_id"))
 
@@ -118,7 +119,7 @@ def handle_join_quiz(data):
 
 
 @socketio.on("submit_answer")
-def handle_answer_submission(data):
+def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     user_id = str(data.get("user_id"))
     quiz_id = str(data.get("quiz_id"))
     answer = data.get("answer")
@@ -159,7 +160,7 @@ def handle_answer_submission(data):
     return {"status": "success", "message": "Answer submitted successfully"}
 
 
-def calculate_score(answer, quiz_id, user_id):
+def calculate_score(answer: str, quiz_id: str, user_id: str) -> int:
     # Retrieve the user's past score from DynamoDB
     response = dynamodb.get_item(
         TableName="quiz_scores",
@@ -176,15 +177,17 @@ def calculate_score(answer, quiz_id, user_id):
     return total_score
 
 
-def get_leaderboard(quiz_id):
+def get_leaderboard(quiz_id: str) -> List[Dict[str, Union[str, float]]]:
     redis_key = f"quiz:{quiz_id}:leaderboard"
     # Get top 10 scores
-    leaderboard_data = redis_client.zrevrange(redis_key, 0, 9, withscores=True)
+    leaderboard_data: List[Tuple[str, float]] = redis_client.zrevrange(
+        redis_key, 0, 9, withscores=True
+    )
     return [{"user_id": user_id, "score": score} for user_id, score in leaderboard_data]
 
 
 @socketio.on("get_leaderboard")
-def handle_get_leaderboard(data):
+def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
     quiz_id = str(data.get("quiz_id"))
     if quiz_id not in VALID_QUIZZES:
         return {"status": "error", "message": "Invalid quiz ID"}
