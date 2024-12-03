@@ -16,34 +16,23 @@ from kafka.errors import NoBrokersAvailable, TopicAlreadyExistsError
 from loguru import logger
 
 from const import VALID_QUIZZES, VALID_USER_IDS  # Import constants
+from config import get_redis_client, get_dynamodb_client, get_kafka_admin_client, get_kafka_consumer
+from redis_operations import RedisOperations
+from dynamodb_operations import DynamoDBOperations
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Initialize Redis and DynamoDB clients using environment variables
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "redis"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    decode_responses=True,
-)
-
-dynamodb = boto3.client(
-    "dynamodb",
-    endpoint_url=os.getenv("DYNAMODB_ENDPOINT", "http://dynamodb-local:8000"),
-    region_name=os.getenv("AWS_REGION", "local"),
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "local"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "local"),
-    aws_session_token=None,
-    verify=False,
-)
-
+# Initialize clients
+redis_client = get_redis_client()
+redis_ops = RedisOperations(redis_client)
+dynamodb_client = get_dynamodb_client()
+dynamodb_ops = DynamoDBOperations(dynamodb_client)
 
 def ensure_topic_exists(topic_name: str) -> None:
     try:
-        admin_client = KafkaAdminClient(
-            bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-        )
+        admin_client = get_kafka_admin_client()
         new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
         admin_client.create_topics([new_topic])
         logger.info(f"Created new topic: {topic_name}")
@@ -53,40 +42,13 @@ def ensure_topic_exists(topic_name: str) -> None:
         logger.error("Failed to connect to Kafka. Exiting...")
         sys.exit(1)
 
-
-# Add new function to create consumer
-def get_kafka_consumer(max_retries: int = 5, retry_delay: int = 5) -> KafkaConsumer:
-    for attempt in range(max_retries):
-        try:
-            consumer = KafkaConsumer(
-                bootstrap_servers=[os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")],
-                auto_offset_reset="latest",
-                enable_auto_commit=True,
-                group_id="quiz_group",
-            )
-            logger.info("Successfully created Kafka consumer")
-            return consumer
-        except NoBrokersAvailable:
-            if attempt == max_retries - 1:
-                logger.error(
-                    f"Failed to create Kafka consumer after {max_retries} attempts. Exiting..."
-                )
-                sys.exit(1)
-            logger.warning(
-                f"Kafka not available, retrying consumer creation in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries})"
-            )
-            time.sleep(retry_delay)
-
-
 @app.route("/")
 def hello():
     return "Hello, World!"
 
-
 @socketio.on("connect")
 def handle_connect():
     logger.info("Client connected")
-
 
 @socketio.on("join_quiz")
 def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
@@ -117,7 +79,6 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
     )
     return {"status": "success", "message": f"Joined quiz {quiz_id}"}
 
-
 @socketio.on("submit_answer")
 def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     user_id = str(data.get("user_id"))
@@ -128,26 +89,17 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     if user_id not in VALID_USER_IDS or quiz_id not in VALID_QUIZZES:
         return {"status": "error", "message": "Invalid user ID or quiz ID"}
 
-    # Calculate score (implement your scoring logic here)
+    # Calculate score
     score = calculate_score(answer, quiz_id, user_id)
 
     # Update DynamoDB
-    dynamodb.put_item(
-        TableName="quiz_scores",
-        Item={
-            "user_id": {"S": user_id},
-            "quiz_id": {"S": quiz_id},
-            "score": {"N": str(score)},
-            "timestamp": {"S": datetime.utcnow().isoformat()},
-        },
-    )
+    dynamodb_ops.save_score(user_id, quiz_id, score)
 
     # Update Redis cache
-    redis_key = f"quiz:{quiz_id}:leaderboard"
-    redis_client.zadd(redis_key, {user_id: score})
+    redis_ops.update_leaderboard_score(quiz_id, user_id, score)
 
     # Get updated leaderboard
-    leaderboard = get_leaderboard(quiz_id)
+    leaderboard = redis_ops.get_leaderboard(quiz_id)
 
     # Emit update to all users in the quiz room
     topic_name = f"leaderboard_scoring_{quiz_id}"
@@ -159,15 +111,9 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
 
     return {"status": "success", "message": "Answer submitted successfully"}
 
-
 def calculate_score(answer: str, quiz_id: str, user_id: str) -> int:
-    # Retrieve the user's past score from DynamoDB
-    response = dynamodb.get_item(
-        TableName="quiz_scores",
-        Key={"user_id": {"S": user_id}, "quiz_id": {"S": quiz_id}},
-    )
-
-    past_score = int(response["Item"]["score"]["N"]) if "Item" in response else 0
+    # Get the user's past score from DynamoDB
+    past_score = dynamodb_ops.get_user_score(user_id, quiz_id)
 
     # Calculate new score (implement your scoring logic here)
     new_score = len(answer)
@@ -176,15 +122,8 @@ def calculate_score(answer: str, quiz_id: str, user_id: str) -> int:
     total_score = past_score + new_score
     return total_score
 
-
 def get_leaderboard(quiz_id: str) -> List[Dict[str, Union[str, float]]]:
-    redis_key = f"quiz:{quiz_id}:leaderboard"
-    # Get top 10 scores
-    leaderboard_data: List[Tuple[str, float]] = redis_client.zrevrange(
-        redis_key, 0, 9, withscores=True
-    )
-    return [{"user_id": user_id, "score": score} for user_id, score in leaderboard_data]
-
+    return redis_ops.get_leaderboard(quiz_id)
 
 @socketio.on("get_leaderboard")
 def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
@@ -199,7 +138,6 @@ def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
         room=request.sid,
     )
     return {"status": "success", "message": "Leaderboard sent"}
-
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
