@@ -122,7 +122,7 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
 def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     user_id = str(data.get("user_id"))
     quiz_id = str(data.get("quiz_id"))
-    answer = data.get("answer")
+    answer = str(data.get("answer"))
 
     # Validate inputs
     if user_id not in VALID_USER_IDS or quiz_id not in VALID_QUIZZES:
@@ -198,6 +198,7 @@ def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
         {"leaderboard": leaderboard, "quiz_id": quiz_id},
         room=request.sid,
     )
+    return {"status": "success", "message": "Leaderboard sent"}
 
 
 if __name__ == "__main__":
