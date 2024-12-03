@@ -19,6 +19,7 @@ from const import VALID_QUIZZES, VALID_USER_IDS  # Import constants
 from config import get_redis_client, get_dynamodb_client, get_kafka_admin_client, get_kafka_consumer
 from redis_operations import RedisOperations
 from dynamodb_operations import DynamoDBOperations
+from scoring import calculate_score
 
 app = Flask(__name__)
 CORS(app)
@@ -90,7 +91,7 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
         return {"status": "error", "message": "Invalid user ID or quiz ID"}
 
     # Calculate score
-    score = calculate_score(answer, quiz_id, user_id)
+    score = calculate_score(answer, quiz_id, user_id, dynamodb_ops)
 
     # Update DynamoDB
     dynamodb_ops.save_score(user_id, quiz_id, score)
@@ -110,17 +111,6 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     )
 
     return {"status": "success", "message": "Answer submitted successfully"}
-
-def calculate_score(answer: str, quiz_id: str, user_id: str) -> int:
-    # Get the user's past score from DynamoDB
-    past_score = dynamodb_ops.get_user_score(user_id, quiz_id)
-
-    # Calculate new score (implement your scoring logic here)
-    new_score = len(answer)
-
-    # Accumulate past score with new score
-    total_score = past_score + new_score
-    return total_score
 
 def get_leaderboard(quiz_id: str) -> List[Dict[str, Union[str, float]]]:
     return redis_ops.get_leaderboard(quiz_id)
