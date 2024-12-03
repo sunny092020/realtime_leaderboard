@@ -15,12 +15,13 @@ from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import NoBrokersAvailable, TopicAlreadyExistsError
 from loguru import logger
 
+from config import (get_dynamodb_client, get_kafka_admin_client,
+                    get_kafka_consumer, get_redis_client)
 from const import VALID_QUIZZES, VALID_USER_IDS  # Import constants
-from config import get_redis_client, get_dynamodb_client, get_kafka_admin_client, get_kafka_consumer
-from redis_operations import RedisOperations
 from dynamodb_operations import DynamoDBOperations
+from redis_operations import RedisOperations
 from scoring import calculate_score
-from validation import validate_user_and_quiz, validate_quiz_id
+from validation import validate_quiz_id, validate_user_and_quiz
 
 app = Flask(__name__)
 CORS(app)
@@ -31,6 +32,7 @@ redis_client = get_redis_client()
 redis_ops = RedisOperations(redis_client)
 dynamodb_client = get_dynamodb_client()
 dynamodb_ops = DynamoDBOperations(dynamodb_client)
+
 
 def ensure_topic_exists(topic_name: str) -> None:
     try:
@@ -44,13 +46,16 @@ def ensure_topic_exists(topic_name: str) -> None:
         logger.error("Failed to connect to Kafka. Exiting...")
         sys.exit(1)
 
+
 @app.route("/")
 def hello():
     return "Hello, World!"
 
+
 @socketio.on("connect")
 def handle_connect():
     logger.info("Client connected")
+
 
 @socketio.on("join_quiz")
 def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
@@ -79,6 +84,7 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
         f"User {user_id} joined quiz {quiz_id} and subscribed to Kafka topic {topic_name}"
     )
     return {"status": "success", "message": f"Joined quiz {quiz_id}"}
+
 
 @socketio.on("submit_answer")
 def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
@@ -113,8 +119,10 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
 
     return {"status": "success", "message": "Answer submitted successfully"}
 
+
 def get_leaderboard(quiz_id: str) -> List[Dict[str, Union[str, float]]]:
     return redis_ops.get_leaderboard(quiz_id)
+
 
 @socketio.on("get_leaderboard")
 def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
@@ -130,6 +138,7 @@ def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
         room=request.sid,
     )
     return {"status": "success", "message": "Leaderboard sent"}
+
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)

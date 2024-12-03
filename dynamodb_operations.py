@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Dict, Optional
+
 from boto3.client import BaseClient
 from loguru import logger
+
 
 class DynamoDBOperations:
     def __init__(self, dynamodb_client: BaseClient):
@@ -36,4 +38,4 @@ class DynamoDBOperations:
             return 0
         except Exception as e:
             logger.error(f"Error retrieving score from DynamoDB: {e}")
-            return 0 
+            return 0

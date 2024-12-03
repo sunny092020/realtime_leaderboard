@@ -1,5 +1,7 @@
 from typing import Dict, List, Tuple, Union
+
 from redis import Redis
+
 
 class RedisOperations:
     def __init__(self, redis_client: Redis):
@@ -17,4 +19,6 @@ class RedisOperations:
         leaderboard_data: List[Tuple[str, float]] = self.redis_client.zrevrange(
             redis_key, 0, 9, withscores=True
         )
-        return [{"user_id": user_id, "score": score} for user_id, score in leaderboard_data] 
+        return [
+            {"user_id": user_id, "score": score} for user_id, score in leaderboard_data
+        ]

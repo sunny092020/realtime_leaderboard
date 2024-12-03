@@ -1,8 +1,10 @@
 import os
+
 import boto3
 import redis
-from kafka.admin import KafkaAdminClient
 from kafka import KafkaConsumer
+from kafka.admin import KafkaAdminClient
+
 
 # Redis configuration
 def get_redis_client():
@@ -11,6 +13,7 @@ def get_redis_client():
         port=int(os.getenv("REDIS_PORT", "6379")),
         decode_responses=True,
     )
+
 
 # DynamoDB configuration
 def get_dynamodb_client():
@@ -24,11 +27,13 @@ def get_dynamodb_client():
         verify=False,
     )
 
+
 # Kafka configuration
 def get_kafka_admin_client():
     return KafkaAdminClient(
         bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
     )
+
 
 def get_kafka_consumer(max_retries: int = 5, retry_delay: int = 5) -> KafkaConsumer:
     return KafkaConsumer(
@@ -36,4 +41,4 @@ def get_kafka_consumer(max_retries: int = 5, retry_delay: int = 5) -> KafkaConsu
         auto_offset_reset="latest",
         enable_auto_commit=True,
         group_id="quiz_group",
-    ) 
+    )
