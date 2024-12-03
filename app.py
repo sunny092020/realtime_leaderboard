@@ -20,6 +20,7 @@ from config import get_redis_client, get_dynamodb_client, get_kafka_admin_client
 from redis_operations import RedisOperations
 from dynamodb_operations import DynamoDBOperations
 from scoring import calculate_score
+from validation import validate_user_and_quiz, validate_quiz_id
 
 app = Flask(__name__)
 CORS(app)
@@ -57,10 +58,9 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
     quiz_id = str(data.get("quiz_id"))
 
     # Validate user_id and quiz_id
-    if user_id not in VALID_USER_IDS:
-        return {"status": "error", "message": "Invalid user ID"}
-    if quiz_id not in VALID_QUIZZES:
-        return {"status": "error", "message": "Invalid quiz ID"}
+    is_valid, error_message = validate_user_and_quiz(user_id, quiz_id)
+    if not is_valid:
+        return {"status": "error", "message": error_message}
 
     # Create Kafka topic name for this quiz's leaderboard
     topic_name = f"leaderboard_scoring_{quiz_id}"
@@ -87,8 +87,9 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     answer = str(data.get("answer"))
 
     # Validate inputs
-    if user_id not in VALID_USER_IDS or quiz_id not in VALID_QUIZZES:
-        return {"status": "error", "message": "Invalid user ID or quiz ID"}
+    is_valid, error_message = validate_user_and_quiz(user_id, quiz_id)
+    if not is_valid:
+        return {"status": "error", "message": error_message}
 
     # Calculate score
     score = calculate_score(answer, quiz_id, user_id, dynamodb_ops)
@@ -118,8 +119,9 @@ def get_leaderboard(quiz_id: str) -> List[Dict[str, Union[str, float]]]:
 @socketio.on("get_leaderboard")
 def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
     quiz_id = str(data.get("quiz_id"))
-    if quiz_id not in VALID_QUIZZES:
-        return {"status": "error", "message": "Invalid quiz ID"}
+    is_valid, error_message = validate_quiz_id(quiz_id)
+    if not is_valid:
+        return {"status": "error", "message": error_message}
 
     leaderboard = get_leaderboard(quiz_id)
     socketio.emit(
