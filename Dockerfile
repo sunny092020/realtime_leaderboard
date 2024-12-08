@@ -7,10 +7,9 @@ RUN apt update -y \
     openjdk-11-jdk=11.0.* \
     && pip install poetry==$POETRY_VER
 
-WORKDIR /taskscripts
+WORKDIR /app
 
 COPY pyproject.toml ./
-COPY *.py tests/ ./
 
 RUN poetry lock \
     && poetry export -f requirements.txt > requirements.txt \

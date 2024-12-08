@@ -45,6 +45,8 @@ services:
     build: .
     ports:
       - "5000:5000"
+    volumes:
+      - .:/app
     environment:
       - REDIS_HOST=redis
       - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
