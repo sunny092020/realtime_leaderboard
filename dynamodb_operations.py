@@ -1,12 +1,11 @@
 from datetime import datetime
 from typing import Dict, Optional
-
-from boto3.client import BaseClient
+import boto3
 from loguru import logger
 
 
 class DynamoDBOperations:
-    def __init__(self, dynamodb_client: BaseClient):
+    def __init__(self, dynamodb_client: 'boto3.client.BaseClient'):
         self.dynamodb = dynamodb_client
         self.table_name = "quiz_scores"
 
