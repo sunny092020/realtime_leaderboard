@@ -11,6 +11,7 @@ node_modules/
 /build/
 /dist/
 /out/
+/.mypy_cache/
 
 # Environment variables
 .env
