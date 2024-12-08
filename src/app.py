@@ -15,8 +15,7 @@ from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import NoBrokersAvailable, TopicAlreadyExistsError
 from loguru import logger
 
-from config import (get_dynamodb_client, get_kafka_admin_client,
-                    get_kafka_consumer, get_redis_client)
+from config import (get_dynamodb_client, get_kafka_admin_client, get_redis_client)
 from const import VALID_QUIZZES, VALID_USER_IDS  
 from kafka_operations import KafkaOperations
 from dynamodb_operations import DynamoDBOperations
@@ -62,8 +61,7 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
     kafka_ops.ensure_topic_exists(topic_name)
 
     # Get consumer and subscribe to the topic
-    consumer = get_kafka_consumer()
-    consumer.subscribe([topic_name])
+    kafka_ops.consumer.subscribe([topic_name])
 
     # Subscribe user to the Socket.IO room
     join_room(topic_name)

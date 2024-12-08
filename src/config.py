@@ -2,7 +2,6 @@ import os
 
 import boto3
 import redis
-from kafka import KafkaConsumer
 from kafka.admin import KafkaAdminClient
 
 
@@ -32,13 +31,4 @@ def get_dynamodb_client():
 def get_kafka_admin_client():
     return KafkaAdminClient(
         bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-    )
-
-
-def get_kafka_consumer(max_retries: int = 5, retry_delay: int = 5) -> KafkaConsumer:
-    return KafkaConsumer(
-        bootstrap_servers=[os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")],
-        auto_offset_reset="latest",
-        enable_auto_commit=True,
-        group_id="quiz_group",
     )
