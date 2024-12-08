@@ -95,13 +95,9 @@ def handle_answer_submission(data: Dict[str, str]) -> Dict[str, str]:
     # Get updated leaderboard
     leaderboard = redis_ops.get_leaderboard(quiz_id)
 
-    # Emit update to all users in the quiz room
+    # Publish leaderboard update to Kafka topic
     topic_name = f"leaderboard_scoring_{quiz_id}"
-    socketio.emit(
-        "leaderboard_update",
-        {"leaderboard": leaderboard, "quiz_id": quiz_id},
-        room=topic_name,
-    )
+    kafka_ops.publish_leaderboard_update(topic_name, leaderboard, quiz_id)
 
     return {"status": "success", "message": "Answer submitted successfully"}
 
@@ -118,13 +114,19 @@ def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
         return {"status": "error", "message": error_message}
 
     leaderboard = get_leaderboard(quiz_id)
-    socketio.emit(
-        "leaderboard_update",
-        {"leaderboard": leaderboard, "quiz_id": quiz_id},
-        room=request.sid,
-    )
+    topic_name = f"leaderboard_scoring_{quiz_id}"
+    kafka_ops.publish_leaderboard_update(topic_name, leaderboard, quiz_id)
     return {"status": "success", "message": "Leaderboard sent"}
 
 
 if __name__ == "__main__":
+    # Start Kafka consumer in a background thread
+    import threading
+    consumer_thread = threading.Thread(
+        target=kafka_ops.run_consumer_task,
+        args=(socketio,),
+        daemon=True
+    )
+    consumer_thread.start()
+    
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
