@@ -6,7 +6,6 @@ from kafka.admin import NewTopic
 from kafka.errors import NoBrokersAvailable, TopicAlreadyExistsError
 from loguru import logger
 from kafka import KafkaConsumer, KafkaProducer
-from typing import Optional
 import threading
 
 from config import get_kafka_admin_client

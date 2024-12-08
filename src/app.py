@@ -1,22 +1,11 @@
-import json
-import os
-import sys
-import time
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
-import boto3
-import redis
-from flask import Flask, jsonify, request
+from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO, join_room
-from kafka import KafkaConsumer
-from kafka.admin import KafkaAdminClient, NewTopic
-from kafka.errors import NoBrokersAvailable, TopicAlreadyExistsError
 from loguru import logger
 
-from config import (get_dynamodb_client, get_kafka_admin_client, get_redis_client)
-from const import VALID_QUIZZES, VALID_USER_IDS  
+from config import (get_dynamodb_client, get_redis_client)
 from kafka_operations import KafkaOperations
 from dynamodb_operations import DynamoDBOperations
 from redis_operations import RedisOperations
