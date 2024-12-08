@@ -7,6 +7,7 @@ from kafka.errors import NoBrokersAvailable, TopicAlreadyExistsError
 from loguru import logger
 from kafka import KafkaConsumer, KafkaProducer
 from typing import Optional
+import threading
 
 from config import get_kafka_admin_client
 
@@ -17,6 +18,8 @@ class KafkaOperations:
         self._producer = None
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self._consumer_thread = None
+        self._monitor_thread = None
         self._connect_with_retry()
 
     @property
@@ -70,6 +73,41 @@ class KafkaOperations:
             logger.error("Lost connection to Kafka. Attempting to reconnect...")
             self._connect_with_retry()
             self.ensure_topic_exists(topic_name)  # Retry the operation 
+
+    def start_consumer_with_monitoring(self, socketio) -> None:
+        """
+        Start the consumer thread with monitoring
+        """
+        self._consumer_thread = self._start_consumer_thread(socketio)
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_consumer_thread,
+            args=(socketio,),
+            daemon=True
+        )
+        self._monitor_thread.start()
+        logger.info("Started Kafka consumer with monitoring")
+
+    def _start_consumer_thread(self, socketio) -> threading.Thread:
+        """
+        Create and start a new consumer thread
+        """
+        consumer_thread = threading.Thread(
+            target=self.run_consumer_task,
+            args=(socketio,),
+            daemon=True
+        )
+        consumer_thread.start()
+        return consumer_thread
+
+    def _monitor_consumer_thread(self, socketio) -> None:
+        """
+        Monitor the consumer thread and restart if it dies
+        """
+        while True:
+            if not self._consumer_thread.is_alive():
+                logger.warning("Kafka consumer thread died. Restarting...")
+                self._consumer_thread = self._start_consumer_thread(socketio)
+            time.sleep(5)  # Check every 5 seconds
 
     def run_consumer_task(self, socketio) -> None:
         """

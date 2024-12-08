@@ -120,13 +120,7 @@ def handle_get_leaderboard(data: Dict[str, str]) -> Optional[Dict[str, str]]:
 
 
 if __name__ == "__main__":
-    # Start Kafka consumer in a background thread
-    import threading
-    consumer_thread = threading.Thread(
-        target=kafka_ops.run_consumer_task,
-        args=(socketio,),
-        daemon=True
-    )
-    consumer_thread.start()
+    # Start Kafka consumer with monitoring
+    kafka_ops.start_consumer_with_monitoring(socketio)
     
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
