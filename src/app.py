@@ -17,7 +17,8 @@ from loguru import logger
 
 from config import (get_dynamodb_client, get_kafka_admin_client,
                     get_kafka_consumer, get_redis_client)
-from const import VALID_QUIZZES, VALID_USER_IDS  # Import constants
+from const import VALID_QUIZZES, VALID_USER_IDS  
+from kafka_operations import KafkaOperations
 from dynamodb_operations import DynamoDBOperations
 from redis_operations import RedisOperations
 from scoring import calculate_score
@@ -32,20 +33,7 @@ redis_client = get_redis_client()
 redis_ops = RedisOperations(redis_client)
 dynamodb_client = get_dynamodb_client()
 dynamodb_ops = DynamoDBOperations(dynamodb_client)
-
-
-def ensure_topic_exists(topic_name: str) -> None:
-    try:
-        admin_client = get_kafka_admin_client()
-        new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
-        admin_client.create_topics([new_topic])
-        logger.info(f"Created new topic: {topic_name}")
-    except TopicAlreadyExistsError:
-        logger.info(f"Topic already exists: {topic_name}")
-    except NoBrokersAvailable:
-        logger.error("Failed to connect to Kafka. Exiting...")
-        sys.exit(1)
-
+kafka_ops = KafkaOperations()
 
 @app.route("/")
 def hello():
@@ -71,7 +59,7 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
     topic_name = f"leaderboard_scoring_{quiz_id}"
 
     # Ensure the Kafka topic exists
-    ensure_topic_exists(topic_name)
+    kafka_ops.ensure_topic_exists(topic_name)
 
     # Get consumer and subscribe to the topic
     consumer = get_kafka_consumer()
