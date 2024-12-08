@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
-from app import app, socketio
+from src.app import app, socketio
 import json
 
 @pytest.fixture
@@ -94,7 +94,7 @@ def test_get_leaderboard(client, mock_redis):
         assert 'quiz_id' in received[0]['args'][0]
 
 def test_calculate_score():
-    from app import calculate_score
+    from src.app import calculate_score
     with patch('app.dynamodb') as mock_dynamodb:
         # Mock get_item to return a previous score
         mock_dynamodb.get_item.return_value = {

@@ -51,7 +51,7 @@ services:
       - REDIS_HOST=redis
       - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - FLASK_APP=app.py
+      - FLASK_APP=src/app.py
       - FLASK_ENV=development
       - REDIS_PORT=6379
       - AWS_REGION=local
