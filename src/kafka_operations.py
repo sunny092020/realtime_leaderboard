@@ -17,9 +17,8 @@ class KafkaOperations:
         self._producer = None
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self._consumer_thread = None
-        self._monitor_thread = None
         self._connect_with_retry()
+        self.subscribed_topics = set()  # Track subscribed topics
 
     @property
     def consumer(self):
@@ -34,12 +33,16 @@ class KafkaOperations:
         return self._producer
     
     def _get_kafka_consumer(self, max_retries: int = 5, retry_delay: int = 5) -> KafkaConsumer:
-        return KafkaConsumer(
+        consumer = KafkaConsumer(
             bootstrap_servers=[os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")],
             auto_offset_reset="latest",
             enable_auto_commit=True,
             group_id="quiz_group",
         )
+        # Subscribe to any existing topics
+        if self.subscribed_topics:
+            consumer.subscribe(list(self.subscribed_topics))
+        return consumer
 
     def _get_kafka_producer(self) -> KafkaProducer:
         return KafkaProducer(
@@ -140,3 +143,10 @@ class KafkaOperations:
             )
         except Exception as e:
             logger.error(f"Error publishing to Kafka: {e}")
+
+    def subscribe_to_topic(self, topic_name: str) -> None:
+        """Subscribe to a new topic while maintaining existing subscriptions"""
+        self.subscribed_topics.add(topic_name)
+        if self._consumer:
+            self._consumer.subscribe(list(self.subscribed_topics))
+            logger.info(f"Subscribed to topics: {self.subscribed_topics}")

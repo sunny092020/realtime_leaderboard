@@ -49,8 +49,8 @@ def handle_join_quiz(data: Dict[str, str]) -> Dict[str, str]:
     # Ensure the Kafka topic exists
     kafka_ops.ensure_topic_exists(topic_name)
 
-    # Get consumer and subscribe to the topic
-    kafka_ops.consumer.subscribe([topic_name])
+    # Add the new topic to existing subscriptions
+    kafka_ops.subscribe_to_topic(topic_name)
 
     # Subscribe user to the Socket.IO room
     join_room(topic_name)
