@@ -17,6 +17,8 @@ class KafkaOperations:
         self._producer = None
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self._consumer_thread = None
+        self._monitor_thread = None
         self._connect_with_retry()
         self.subscribed_topics = set()  # Track subscribed topics
 
