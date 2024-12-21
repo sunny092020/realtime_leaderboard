@@ -4,6 +4,8 @@ services:
     image: wurstmeister/zookeeper
     networks:
       - flink-net
+    volumes:
+      - stack-data:/data
 
   kafka:
     image: wurstmeister/kafka
@@ -13,6 +15,8 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     networks:
       - flink-net
+    volumes:
+      - stack-data:/kafka
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -32,6 +36,8 @@ services:
       - "6379:6379"
     networks:
       - flink-net
+    volumes:
+      - stack-data:/data
 
   dynamodb-local:
     image: amazon/dynamodb-local:latest
@@ -40,6 +46,8 @@ services:
     command: "-jar DynamoDBLocal.jar -sharedDb"
     networks:
       - flink-net
+    volumes:
+      - stack-data:/home/dynamodblocal/data
 
   flask-app:
     build: .
@@ -48,6 +56,7 @@ services:
       - "5678:5678"
     volumes:
       - .:/app
+      - stack-data:/app/data
     environment:
       - REDIS_HOST=redis
       - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
@@ -71,3 +80,7 @@ networks:
   flink-net:
     external: false
     name: flink-net
+
+volumes:
+  stack-data:
+    name: flink-stack-data
