@@ -45,6 +45,7 @@ services:
     build: .
     ports:
       - "5000:5000"
+      - "5678:5678"
     volumes:
       - .:/app
     environment:
@@ -57,6 +58,8 @@ services:
       - AWS_REGION=local
       - AWS_ACCESS_KEY_ID=local
       - AWS_SECRET_ACCESS_KEY=local
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
     depends_on:
       - redis
       - dynamodb-local

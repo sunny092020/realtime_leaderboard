@@ -5,7 +5,8 @@ ARG POETRY_VER=1.6.1
 RUN apt update -y \
     && apt-get install -y --no-install-recommends \
     openjdk-11-jdk=11.0.* \
-    && pip install poetry==$POETRY_VER
+    && pip install poetry==$POETRY_VER \
+    && pip install debugpy
 
 WORKDIR /app
 
@@ -17,5 +18,8 @@ RUN poetry lock \
     && rm requirements.txt
 
 EXPOSE 5000
+EXPOSE 5678
 
-CMD ["python", "src/app.py"]
+WORKDIR /app/src
+
+CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "--wait-for-client", "app.py"]
